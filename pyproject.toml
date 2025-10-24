@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools >= 77.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "backpop"
+description = "BackPop: a tool to sample the joint distributions of initial binary parameters and binary interaction assumptions."
+authors = [
+    {name = "Katie Breivik"},
+    {name = "Kaze Wong"},
+    {name = "Tom Wagg"},
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+
+
+requires-python = ">=3.10"
+dependencies = [
+    "scipy>=0.12.1",
+    "numpy==1.23.5",
+    "astropy>=1.1.1",
+    "configparser",
+    "tqdm>=4.0",
+    "pandas>=0.24",
+    "tables>3.5.0",
+    "h5py>=3.7.0",
+    "schwimmbad>=0.3.1",
+    "matplotlib>=2.0.0",
+    "sphinx>=1.6.1",
+    "numpydoc>=0.8.0",
+    "sphinx-bootstrap-theme>=0.6",
+    "sphinxcontrib-programoutput",
+    "sphinx-automodapi",
+    "ipython",
+    "sphinx_rtd_theme",
+    "coverage",
+    "cpp-coveralls",
+    "importlib-metadata<5.0",
+    "flake8<5",
+    "pytest",
+    "pytest-cov",
+    "wheel",
+    "furo",
+    "sphinx-design",
+    "sphinx-copybutton",
+    "meson",
+    "nautilus-sampler",
+    "cosmic-popsynth"
+]
+
+# add optional dependencies for docs
+[project.optional-dependencies]
+docs = [
+    "sphinx>=1.6.1",
+    "nbsphinx",
+    "sphinx_design",
+    "sphinx-copybutton",
+    "numpydoc",
+    "sphinx_togglebutton",
+    "sphinx_immaterial",
+    "sphinxcontrib.bibtex",
+]
+
+
+[project.urls]
+"Repository" = "https://github.com/TomWagg/backpop"
+
+[project.scripts]
+backpop = "backpop.cli:main"

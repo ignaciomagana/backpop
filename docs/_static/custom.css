@@ -1,0 +1,118 @@
+:root {
+    --backpop-primary: #074662;
+    --backpop-primary-darkmode: #2e7897;
+    --backpop-secondary: #535abd;
+}
+
+#COSMIC-frame {
+    width: 100%;
+    height: 500px;
+    border: none;
+}
+
+.md-header-nav__source {
+    width: auto !important;
+    padding-right: 0 !important;
+}
+
+.md-grid {
+    max-width: unset !important;
+    margin-left: 0.5rem !important;
+    margin-right: 0.5rem !important;
+}
+
+button[data-md-color-primary=indigo] {
+    background-color: var(--backpop-primary) !important;
+}
+
+[data-md-color-primary=indigo] .md-typeset a {
+    color: var(--backpop-primary) !important;
+}
+
+[data-md-color-scheme=slate] .md-typeset a {
+    color: var(--backpop-primary-darkmode) !important;
+}
+
+[data-md-color-primary=indigo] .md-header,
+[data-md-color-primary=indigo] .md-hero {
+    background-color: var(--backpop-primary) !important;
+}
+
+[data-md-color-primary=indigo] .md-nav__link--active,
+[data-md-color-primary=indigo] .md-nav__link:active {
+    color: var(--backpop-primary) !important;
+}
+
+[data-md-color-primary=indigo][data-md-color-scheme=slate] .md-nav__link--active,
+[data-md-color-primary=indigo][data-md-color-scheme=slate] .md-nav__link:active {
+    color: var(--backpop-primary-darkmode) !important;
+}
+
+[data-md-color-primary=indigo] .md-nav__item--nested>.md-nav__link {
+    color: inherit
+}
+
+@media only screen and (max-width:59.9375em) {   
+    [data-md-color-primary=indigo] .md-nav__source {
+        background-color: var(--backpop-primary) !important;
+    }
+}
+
+@media only screen and (max-width:76.1875em) {
+    html [data-md-color-primary=indigo] .md-nav--primary .md-nav__title--site {
+        background-color: var(--backpop-primary) !important;
+    }
+}
+
+@media only screen and (min-width:76.25em) {
+    [data-md-color-primary=indigo] .md-tabs {
+        background-color: var(--backpop-primary) !important;
+    }
+}
+
+button[data-md-color-accent=red] {
+    background-color: var(--backpop-secondary) !important;
+}
+
+[data-md-color-accent=red] .md-typeset a:active,
+[data-md-color-accent=red] .md-typeset a:hover {
+    color: var(--backpop-secondary) !important;
+}
+
+[data-md-color-accent=red] .md-typeset .codehilite pre::-webkit-scrollbar-thumb:hover,
+[data-md-color-accent=red] .md-typeset pre code::-webkit-scrollbar-thumb:hover {
+    background-color: var(--backpop-secondary) !important;
+}
+
+[data-md-color-accent=red] .md-nav__link:focus,
+[data-md-color-accent=red] .md-nav__link:hover,
+[data-md-color-accent=red] .md-typeset .footnote li:hover .footnote-backref:hover,
+[data-md-color-accent=red] .md-typeset .footnote li:target .footnote-backref,
+[data-md-color-accent=red] .md-typeset .md-clipboard:active:before,
+[data-md-color-accent=red] .md-typeset .md-clipboard:hover:before,
+[data-md-color-accent=red] .md-typeset [id] .headerlink:focus,
+[data-md-color-accent=red] .md-typeset [id]:hover .headerlink:hover,
+[data-md-color-accent=red] .md-typeset [id]:target .headerlink {
+    color: var(--backpop-secondary) !important;
+}
+
+[data-md-color-accent=red] .md-search__scrollwrap::-webkit-scrollbar-thumb:hover {
+    background-color: var(--backpop-secondary) !important;
+}
+
+[data-md-color-accent=red] .md-search-result__link:hover,
+[data-md-color-accent=red] .md-search-result__link[data-md-state=active] {
+    background-color: rgba(255, 23, 68, .1)
+}
+
+[data-md-color-accent=red] .md-sidebar__scrollwrap::-webkit-scrollbar-thumb:hover {
+    background-color: var(--backpop-secondary) !important;
+}
+
+[data-md-color-accent=red] .md-source-file:hover:before {
+    background-color: var(--backpop-secondary) !important;
+}
+
+.md-clipboard:focus, .md-clipboard:hover {
+    color: var(--backpop-secondary) !important;
+}
