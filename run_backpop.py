@@ -78,7 +78,7 @@ if __name__ == "__main__":
         print("Output directory already exists. Continuing...")
         pass
 
-    cols_keep = ['tphys', 'mass_1', 'mass_2', 'kstar_1', 'kstar_2', 'porb', 'ecc', 'evol_type', 'rad_1', 'rad_2']
+    cols_keep = ['tphys', 'mass_1', 'mass_2', 'menv_1', 'menv_2', 'kstar_1', 'kstar_2', 'porb', 'ecc', 'evol_type', 'rad_1', 'rad_2', 'lum_1', 'lum_2']
     KICK_COLUMNS = ['star', 'disrupted', 'natal_kick', 'phi', 'theta', 'mean_anomaly',
                     'delta_vsysx_1', 'delta_vsysy_1', 'delta_vsysz_1', 'vsys_1_total',
                     'delta_vsysx_2', 'delta_vsysy_2', 'delta_vsysz_2', 'vsys_2_total',
@@ -91,7 +91,8 @@ if __name__ == "__main__":
     evolution, lower_bound, upper_bound, params_in = get_backpop_config(config_name)
 
     KDE, gwsamples, gwsamples_kde, qmin, qmax, mcmin, mcmax = load_data(samples_path, weights)
-
+    qmax = max(qmax, 0.3)
+    print(f'qmax={qmax}, qmin={qmin}, mcmax={mcmax}, mcmin={mcmin}')
     # Set up Nautilus prior
     prior = Prior()
     for i in range(len(params_in)):
