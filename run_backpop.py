@@ -21,9 +21,9 @@ from nautilus import Prior, Sampler
 
 
 # split out rv with KDE if you have GW samples
-def likelihood(KDE, params_out, qmax, params_in):
+def likelihood(KDE, params_out, qmax, fixed_params, params_in):
     # evolve the binary
-    result = evolv2(params_in, params_out)
+    result = evolv2(params_in, params_out, fixed_params)
     # check result
     if result[0] is None:
         return -np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float), np.full(np.prod(KICK_SHAPE), np.nan, dtype=float)
@@ -40,6 +40,7 @@ def likelihood(KDE, params_out, qmax, params_in):
     m2 = result[0]['mass_2']
     q = np.where(m2 <= m1, m2/m1, m1/m2)  # Ensure q is defined only when m2 <= m1
     mc = (m1*m2)**(3/5)/(m1 + m2)**(1/5)
+    Mtot = m1+m2
     if (q < qmax):
         gw_coord = np.array([mc, q])
         ll = KDE.logpdf(gw_coord)
@@ -67,6 +68,8 @@ if __name__ == "__main__":
     config_name = opts.config_name
     weights = opts.weights
     resume = opts.resume
+    #weights = True
+    #resume = False
     print(weights)
     print(resume)
 
@@ -78,7 +81,7 @@ if __name__ == "__main__":
         print("Output directory already exists. Continuing...")
         pass
 
-    cols_keep = ['tphys', 'mass_1', 'mass_2', 'menv_1', 'menv_2', 'kstar_1', 'kstar_2', 'porb', 'ecc', 'evol_type', 'rad_1', 'rad_2', 'lum_1', 'lum_2']
+    cols_keep = ['tphys', 'mass_1', 'mass_2', 'massc_1', 'massc_2', 'menv_1', 'menv_2', 'kstar_1', 'kstar_2', 'porb', 'ecc', 'evol_type', 'rad_1', 'rad_2', 'lum_1', 'lum_2']
     KICK_COLUMNS = ['star', 'disrupted', 'natal_kick', 'phi', 'theta', 'mean_anomaly',
                     'delta_vsysx_1', 'delta_vsysy_1', 'delta_vsysz_1', 'vsys_1_total',
                     'delta_vsysx_2', 'delta_vsysy_2', 'delta_vsysz_2', 'vsys_2_total',
@@ -88,10 +91,10 @@ if __name__ == "__main__":
     params = labels_dict[config_name]
     print(config_name)
 
-    evolution, lower_bound, upper_bound, params_in = get_backpop_config(config_name)
+    lower_bound, upper_bound, params_in, fixed_params = get_backpop_config(config_name)
 
     KDE, gwsamples, gwsamples_kde, qmin, qmax, mcmin, mcmax = load_data(samples_path, weights)
-    qmax = max(qmax, 0.3)
+    #qmax = max(qmax, 0.3)
     print(f'qmax={qmax}, qmin={qmin}, mcmax={mcmax}, mcmin={mcmin}')
     # Set up Nautilus prior
     prior = Prior()
@@ -101,6 +104,7 @@ if __name__ == "__main__":
     params_out=['mass_1', 'mass_2']
     num_cores = int(len(os.sched_getaffinity(0)))
     num_threads = int(2*num_cores-2)
+    #num_threads = 1
     print("using multiprocessing with " + str(num_threads) + " threads")
     
     dtype = [('bpp', float, 25*len(cols_keep)), ('kick_info', float, 2*len(KICK_COLUMNS))]
@@ -114,7 +118,7 @@ if __name__ == "__main__":
         blobs_dtype=dtype,
         filepath="./results/" + event_name + "/" + config_name + "/" + "checkpoint.hdf5",
         resume=resume, 
-        likelihood_args=(KDE, params_out, qmax)
+        likelihood_args=(KDE, params_out, qmax, fixed_params)
 )
     sampler.run(n_eff=n_eff,verbose=True,discard_exploration=True)
     

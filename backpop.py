@@ -56,13 +56,13 @@ KICK_COLUMNS = ['star', 'disrupted', 'natal_kick', 'phi', 'theta', 'mean_anomaly
                 'delta_vsysx_2', 'delta_vsysy_2', 'delta_vsysz_2', 'vsys_2_total',
                 'theta_euler', 'phi_euler', 'psi_euler', 'randomseed']
 
-cols_keep = ['tphys', 'mass_1', 'mass_2', 'menv_1', 'menv_2', 'kstar_1', 'kstar_2', 'porb', 'ecc', 'evol_type', 'rad_1', 'rad_2', 'lum_1', 'lum_2']
+cols_keep = ['tphys', 'mass_1', 'mass_2', 'massc_1', 'massc_2', 'menv_1', 'menv_2', 'kstar_1', 'kstar_2', 'porb', 'ecc', 'evol_type', 'rad_1', 'rad_2', 'lum_1', 'lum_2']
 
 BPP_SHAPE = (25, len(cols_keep))
 KICK_SHAPE = (2, len(KICK_COLUMNS))
 
 
-def set_flags(params_in):
+def set_flags(params_in, fixed_params):
     ''' Set the COSMIC flags based on input parameters.
     If a parameter is not specified in params_in, it is set to a default value.
     
@@ -70,6 +70,9 @@ def set_flags(params_in):
     ----------
     params_in : dict
         Dictionary of input parameters to set. Keys are parameter names, values are parameter values.
+    fixed_params : dict
+        Dictionary of fixed parameters that should not be sampled but should be fixed. Keys are parameter names, values are parameter values
+
         
     Returns
     -------
@@ -97,7 +100,7 @@ def set_flags(params_in):
     flags["ifflag"] = 0
     flags["wdflag"] = 1
     flags["rtmsflag"] = 0
-    flags["ceflag"] = 1
+    flags["ceflag"] = 0
     flags["cekickflag"] = 2
     flags["cemergeflag"] = 1
     flags["cehestarflag"] = 0
@@ -181,6 +184,52 @@ def set_flags(params_in):
                 
         elif param in ["acc_lim_1", "acc_lim_2"]:
             
+            if param == "acc_lim_2":
+                acc_lim[1] = params_in[param]
+            elif param == "acc_lim_1":
+                acc_lim[0] = params_in[param]
+
+        else:
+            flags[param] = params_in[param]
+
+    for param in fixed_params.keys():
+        # handle kicks
+        # this is hacky -- think about this more.
+        if param in ["vk1", "phi1", "theta1", "omega1", "vk2", "phi2", "theta2", "omega2"]:
+            if "1" in param:
+                if "vk" in param:
+                    natal_kick[0,0] = fixed_params[param]
+                elif "phi" in param:
+                    natal_kick[0,1] = fixed_params[param]
+                elif "theta" in param:
+                    natal_kick[0,2] = fixed_params[param]
+                elif "omega" in param:
+                    natal_kick[0,3] = fixed_params[param]
+                natal_kick[0,4] = 0.0
+            elif "2" in param:
+                if "vk" in param:
+                    natal_kick[1,0] = fixed_params[param]
+                elif "phi" in param:
+                    natal_kick[1,1] = fixed_params[param]
+                elif "theta" in param:
+                    natal_kick[1,2] = fixed_params[param]
+                elif "omega" in param:
+                    natal_kick[1,3] = fixed_params[param]
+                natal_kick[1,4] = 0.0
+
+        elif param in qc_list:
+            ind = qc_list.index(param)  # get the index of param in qc_list
+            qcrit_array[ind] = params_in[param]
+
+        elif param in ["alpha1_1", "alpha1_2"]:
+
+            if param == "alpha1_2":
+                alpha1[1] = params_in[param]
+            elif param == "alpha1_1":
+                alpha1[0] = params_in[param]
+
+        elif param in ["acc_lim_1", "acc_lim_2"]:
+
             if param == "acc_lim_2":
                 acc_lim[1] = params_in[param]
             elif param == "acc_lim_1":
@@ -276,7 +325,7 @@ def set_evolvebin_flags(flags):
 
     return None
 
-def evolv2(params_in, params_out):
+def evolv2(params_in, params_out, fixed_params):
     ''' Evolve a binary with COSMIC given initial parameters with
     a direct call to the _evolvebin module.
 
@@ -285,7 +334,9 @@ def evolv2(params_in, params_out):
     params_in : dict
         Dictionary of input parameters to evolve. Keys are parameter names, values are parameter values.
     params_out : list   
-        List of parameter names to return from the final state of the binary.
+        List of parameter names to return from the final state of the binary
+    fixed_params : dict
+        Dictionary of fixed parameters that should not be sampled but should be fixed. Keys are parameter names, values are parameter values
     
     Returns
     -------
@@ -303,12 +354,15 @@ def evolv2(params_in, params_out):
     q = params_in["q"]
     m2 = q*m1
     tb = 10**params_in["logtb"] 
-    e = params_in["e"]
+    if "e" in params_in:
+        e = params_in["e"]
+    else:
+        e = 0.0
     metallicity = 10**params_in['logZ']
     # set the other flags
-    flags = set_flags(params_in)
+    flags = set_flags(params_in, fixed_params)
     _ = set_evolvebin_flags(flags)
-    
+
     bpp_columns = BPP_COLUMNS
     bcm_columns = BCM_COLUMNS
     
@@ -382,66 +436,71 @@ def evolv2(params_in, params_out):
 
 
 
-def evolv2_fixed_kicks(m1, q, logtb, e, alpha_1, alpha_2, acc_lim_1, acc_lim_2, qHG, logZ):
+#def evolv2_fixed_kicks(m1, q, logtb, e, alpha_1, alpha_2, acc_lim_1, acc_lim_2, qHG, logZ):
+#    vk1 = 0.0
+#    theta1 = 0.0
+#    phi1 = 0.0
+#    omega1 = 0.0
+#    vk2 = 0.0
+#    theta2 = 0.0
+#    phi2 = 0.0
+#    omega2 = 0.0
+#
+#    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
+#
+#def evolv2_fixed_kicks_minimal(m1, q, logtb, e, alpha, acc_lim, qHG, logZ):
+#    alpha_1 = alpha
+#    alpha_2 = alpha
+#    acc_lim_1 = acc_lim
+#    acc_lim_2 = acc_lim
+#    vk1 = 0.0
+#    theta1 = 0.0
+#    phi1 = 0.0
+#    omega1 = 0.0
+#    vk2 = 0.0
+#    theta2 = 0.0
+#    phi2 = 0.0
+#    omega2 = 0.0
+#    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
+#
+def evolv2_lowmass_secondary(m1, q, logtb, e, alpha_1, alpha_2, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, logZ):
     vk1 = 0.0
     theta1 = 0.0
     phi1 = 0.0
     omega1 = 0.0
-    vk2 = 0.0
-    theta2 = 0.0
-    phi2 = 0.0
-    omega2 = 0.0
-
+    
+    qHG = 3.0
     return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
-
-def evolv2_fixed_kicks_minimal(m1, q, logtb, e, alpha, acc_lim, qHG, logZ):
-    alpha_1 = alpha
-    alpha_2 = alpha
-    acc_lim_1 = acc_lim
-    acc_lim_2 = acc_lim
-    vk1 = 0.0
-    theta1 = 0.0
-    phi1 = 0.0
-    omega1 = 0.0
-    vk2 = 0.0
-    theta2 = 0.0
-    phi2 = 0.0
-    omega2 = 0.0
-    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
-
-def evolv2_lowmass_secondary(m1, q, logtb, e, alpha_1, alpha_2, vk2, theta2, phi2, acc_lim_1, acc_lim_2, qHG, logZ):
-    vk1 = 0.0
-    theta1 = 0.0
-    phi1 = 0.0
-    omega1 = 0.0
-    omega2 = 0.0
-    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
-
-def evolv2_lowmass_secondary_minimal(m1, q, logtb, e, alpha, vk2, theta2, phi2, acc_lim, qHG, logZ):
-    vk1 = 0.0
-    alpha_1 = alpha
-    alpha_2 = alpha
-    acc_lim_1 = acc_lim
-    acc_lim_2 = acc_lim
-    theta1 = 0.0
-    phi1 = 0.0
-    omega1 = 0.0
-    omega2 = 0.0
-    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
-
-def evolv2_vk2_alpha_lambda(m1, q, logtb, e, alpha, vk2, theta2, phi2, acc_lim, qHG, logZ):
-    vk1 = 0.0
-    alpha_1 = alpha
-    alpha_2 = alpha
-    acc_lim_1 = acc_lim
-    acc_lim_2 = acc_lim
-    theta1 = 0.0
-    phi1 = 0.0
-    omega1 = 0.0
-    omega2 = 0.0
-    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
-
-
+#
+#def evolv2_lowmass_secondary_minimal(m1, q, logtb, e, alpha, vk2, theta2, phi2, omega2, acc_lim, logZ):
+#    vk1 = 0.0
+#    alpha_1 = alpha
+#    alpha_2 = alpha
+#    acc_lim_1 = acc_lim
+#    acc_lim_2 = acc_lim
+#    theta1 = 0.0
+#    phi1 = 0.0
+#    omega1 = 0.0
+#    e=0.0
+#    
+#    qHG = 0.0
+#
+#    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, logZ)
+#
+#
+#def evolv2_vk2_alpha_lambda(m1, q, logtb, e, alpha, vk2, theta2, phi2, acc_lim, qHG, logZ):
+#    vk1 = 0.0
+#    alpha_1 = alpha
+#    alpha_2 = alpha
+#    acc_lim_1 = acc_lim
+#    acc_lim_2 = acc_lim
+#    theta1 = 0.0
+#    phi1 = 0.0
+#    omega1 = 0.0
+#    omega2 = 0.0
+#    return evolv2(m1, q, logtb, e, alpha_1, alpha_2, vk1, theta1, phi1, omega1, vk2, theta2, phi2, omega2, acc_lim_1, acc_lim_2, qHG, logZ)
+#
+#
 def str_to_bool(value):
     if value.lower() in {'false', 'f', '0', 'no', 'n'}:
         return False
@@ -494,9 +553,9 @@ labels_dict = {"backpop" : [r'$m_1$',r'$m_2$',r'$\log_{10}t_b$',r'$e$',r'$\alpha
                "backpop_fixed_kicks_minimal" : [r'$m_1$',r'$m_2$',r'$\log_{10}t_b$',r'$e$',r'$\alpha$',
                                                 r'$f_{\rm lim}$',r'$q_{\rm HG}$',r'$\log_{10}Z$'],
                
-               "backpop_lowmass_secondary" : [r'$m_1$',r'$m_2$',r'$\log_{10}t_b$',r'$e$',r'$\alpha_1$',r'$\alpha_2$',
-                                              r'$v_2$',r'$\theta_2$',r'$\phi_2$',r'$f_{\rm lim,1}$',
-                                              r'$f_{\rm lim,2}$',r'$q_{\rm HG}$',r'$\log_{10}Z$'],
+               "backpop_lowmass_secondary" : [r'$m_1$',r'$m_2$',r'$\log_{10}t_b$',r'$\alpha_1$',r'$\alpha_2$',
+                                              r'$v_2$',r'$\theta_2$',r'$\phi_2$',r'$\omega_2$',r'$f_{\rm lim,1}$',
+                                              r'$f_{\rm lim,2}$',r'$\log_{10}Z$'],
 
                "backpop_lowmass_secondary_minimal" : [r'$m_1$',r'$m_2$',r'$\log_{10}t_b$',r'$e$',r'$\alpha$',
                                               r'$v_2$',r'$\theta_2$',r'$\phi_2$',r'$f_{\rm lim}$',
@@ -505,41 +564,42 @@ labels_dict = {"backpop" : [r'$m_1$',r'$m_2$',r'$\log_{10}t_b$',r'$e$',r'$\alpha
 
 def get_backpop_config(config_name):
     if (config_name == "backpop"):
-        lower_bound = np.array([m1lo, qlo, np.log10(tblo), elo, alphalo_1, alphalo_2, vklo, thetalo, philo, omegalo, vklo, thetalo, philo, omegalo, acc_limlo_1, acc_limlo_2, qc_kstar2lo, np.log10(Zlo)])
-        upper_bound = np.array([m1hi, qhi, np.log10(tbhi), ehi, alphahi_1, alphahi_2, vkhi, thetahi, phihi, omegahi, vkhi, thetahi, phihi, omegahi, acc_limhi_1, acc_limhi_2, qc_kstar2hi, np.log10(Zhi)])
-        params_in = ['m1', 'q', 'logtb', 'e', 'alpha_1', 'alpha_2', 'vk1', 'theta1', 'phi1', 'omega1', 'vk2', 'theta2', 'phi2', 'omega2', 'acc_lim_1', 'acc_lim_2', 'qHG', 'logZ']
-
-        evolution = evolv2
+        lower_bound = np.array([m1lo, qlo, np.log10(tblo), alphalo_1, alphalo_2, vklo, thetalo, philo, omegalo, vklo, thetalo, philo, omegalo, acc_limlo_1, acc_limlo_2, np.log10(Zlo)])
+        upper_bound = np.array([m1hi, qhi, np.log10(tbhi), alphahi_1, alphahi_2, vkhi, thetahi, phihi, omegahi, vkhi, thetahi, phihi, omegahi, acc_limhi_1, acc_limhi_2, np.log10(Zhi)])
+        params_in = ['m1', 'q', 'logtb', 'alpha_1', 'alpha_2', 'vk1', 'theta1', 'phi1', 'omega1', 'vk2', 'theta2', 'phi2', 'omega2', 'acc_lim_1', 'acc_lim_2', 'logZ']
+        fixed_params = {}
 
     if (config_name == "backpop_fixed_kicks"):
         lower_bound = np.array([m1lo, qlo, np.log10(tblo), elo, alphalo_1, alphalo_2, acc_limlo_1, acc_limlo_2, qc_kstar2lo, np.log10(Zlo)])
         upper_bound = np.array([m1hi, qhi, np.log10(tbhi), ehi, alphahi_1, alphahi_2, acc_limhi_1, acc_limhi_2, qc_kstar2hi, np.log10(Zhi)])
         params_in = ['m1', 'q', 'logtb', 'e', 'alpha_1', 'alpha_2', 'acc_lim_1', 'acc_lim_2', 'qHG', 'logZ']
-
-        evolution = evolv2_fixed_kicks
+        fixed_params = {'vk1': 0.0, 'theta1': 0.0, 'omega1': 0.0, 'phi1': 0.0, 'vk2': 0.0, 'theta2': 0.0, 'phi2': 0.0, 'omega2': 0.0}
         
     if (config_name == "backpop_fixed_kicks_minimal"):
+        ### KB hasn't figured out how to get the alpha_sampling right here
         lower_bound = np.array([m1lo, qlo, np.log10(tblo), elo, alphalo_1, acc_limlo_1, qc_kstar2lo, np.log10(Zlo)])
         upper_bound = np.array([m1hi, qhi, np.log10(tbhi), ehi, alphahi_1, acc_limhi_1, qc_kstar2hi, np.log10(Zhi)])
         params_in = ['m1', 'q', 'logtb', 'e', 'alpha_1', 'acc_lim_1', 'qHG', 'logZ']
+        fixed_params = {'vk1': 0.0, 'theta1': 0.0, 'omega1': 0.0, 'phi1': 0.0, 'vk2': 0.0, 'theta2': 0.0, 'phi2': 0.0, 'omega2': 0.0}
 
-        evolution = evolv2_fixed_kicks_minimal
 
     if (config_name == "backpop_lowmass_secondary"):
-        lower_bound = np.array([m1lo, qlo, np.log10(tblo), elo, alphalo_1, alphalo_2, vklo, thetalo, philo, acc_limlo_1, acc_limlo_2, qc_kstar2lo, np.log10(Zlo)])
-        upper_bound = np.array([m1hi, qhi, np.log10(tbhi), ehi, alphahi_1, alphahi_2, vkhi, thetahi, phihi, acc_limhi_1, acc_limhi_2, qc_kstar2hi, np.log10(Zhi)])
-        params_in = ['m1', 'q', 'logtb', 'e', 'alpha_1', 'alpha_2', 'vk2', 'theta2', 'phi2', 'acc_lim_1', 'acc_lim_2', 'qHG', 'logZ']
-        
-        evolution = evolv2_lowmass_secondary
+        lower_bound = np.array([m1lo, qlo, np.log10(tblo), alphalo_1, alphalo_2, vklo, thetalo, philo, omegalo, acc_limlo_1, acc_limlo_2, np.log10(Zlo)])
+        upper_bound = np.array([m1hi, qhi, np.log10(tbhi), alphahi_1, alphahi_2, vkhi, thetahi, phihi, omegahi, acc_limhi_1, acc_limhi_2, np.log10(Zhi)])
+        params_in = ['m1', 'q', 'logtb', 'alpha_1', 'alpha_2', 'vk2', 'theta2', 'phi2', 'omega2', 'acc_lim_1', 'acc_lim_2', 'logZ']
+        fixed_params = {'vk1': 0.0, 'theta1': 0.0, 'omega1': 0.0, 'phi1': 0.0}
+
         
     if (config_name == "backpop_lowmass_secondary_minimal"):
-        lower_bound = np.array([m1lo, qlo, np.log10(tblo), elo, alphalo_1, vklo, thetalo, philo, omegalo, acc_limlo_1, np.log10(Zlo)])
-        upper_bound = np.array([m1hi, qhi, np.log10(tbhi), ehi, alphahi_1, vkhi, thetahi, phihi, omegahi, acc_limhi_1, np.log10(Zhi)])  
-        params_in = ['m1', 'q', 'logtb', 'e', 'alpha_1', 'vk2', 'theta2', 'phi2', 'omega2', 'acc_lim_1', 'logZ']
+        ### KB hasn't figured out how to get the alpha_sampling right here
+        lower_bound = np.array([m1lo, qlo, np.log10(tblo), alphalo_1, vklo, thetalo, philo, omegalo, acc_limlo_1, np.log10(Zlo)])
+        upper_bound = np.array([m1hi, qhi, np.log10(tbhi), alphahi_1, vkhi, thetahi, phihi, omegahi, acc_limhi_1, np.log10(Zhi)])  
+        params_in = ['m1', 'q', 'logtb', 'alpha_1', 'vk2', 'theta2', 'phi2', 'omega2', 'acc_lim_1', 'logZ']
+        fixed_params = {'vk1': 0.0, 'theta1': 0.0, 'omega1': 0.0, 'phi1': 0.0}
 
-        evolution = evolv2_lowmass_secondary_minimal
+
         
-    return evolution, lower_bound, upper_bound, params_in
+    return lower_bound, upper_bound, params_in, fixed_params
 
 
 # Cosmo routines
