@@ -21,9 +21,9 @@ from nautilus import Prior, Sampler
 
 
 # split out rv with KDE if you have GW samples
-def likelihood(KDE, params_out, qmax, params_in):
+def likelihood(KDE, params_out, qmax, fixed_params, params_in):
     # evolve the binary
-    result = evolv2(params_in, params_out)
+    result = evolv2(params_in, params_out, fixed_params)
     # check result
     if result[0] is None:
         return -np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float), np.full(np.prod(KICK_SHAPE), np.nan, dtype=float)
@@ -42,7 +42,7 @@ def likelihood(KDE, params_out, qmax, params_in):
     mc = (m1*m2)**(3/5)/(m1 + m2)**(1/5)
     Mtot = m1+m2
     if (q < qmax):
-        gw_coord = np.array([Mtot, q])
+        gw_coord = np.array([mc, q])
         ll = KDE.logpdf(gw_coord)
         return (ll[0], bpp_flat, kick_flat)
     else:
@@ -68,6 +68,8 @@ if __name__ == "__main__":
     config_name = opts.config_name
     weights = opts.weights
     resume = opts.resume
+    #weights = True
+    #resume = False
     print(weights)
     print(resume)
 
@@ -89,7 +91,7 @@ if __name__ == "__main__":
     params = labels_dict[config_name]
     print(config_name)
 
-    evolution, lower_bound, upper_bound, params_in = get_backpop_config(config_name)
+    lower_bound, upper_bound, params_in, fixed_params = get_backpop_config(config_name)
 
     KDE, gwsamples, gwsamples_kde, qmin, qmax, mcmin, mcmax = load_data(samples_path, weights)
     #qmax = max(qmax, 0.3)
@@ -100,9 +102,9 @@ if __name__ == "__main__":
         prior.add_parameter(params_in[i], dist=(lower_bound[i], upper_bound[i]))
 
     params_out=['mass_1', 'mass_2']
-    #num_cores = int(len(os.sched_getaffinity(0)))
-    #num_threads = int(2*num_cores-2)
-    num_threads = 10
+    num_cores = int(len(os.sched_getaffinity(0)))
+    num_threads = int(2*num_cores-2)
+    #num_threads = 1
     print("using multiprocessing with " + str(num_threads) + " threads")
     
     dtype = [('bpp', float, 25*len(cols_keep)), ('kick_info', float, 2*len(KICK_COLUMNS))]
@@ -116,7 +118,7 @@ if __name__ == "__main__":
         blobs_dtype=dtype,
         filepath="./results/" + event_name + "/" + config_name + "/" + "checkpoint.hdf5",
         resume=resume, 
-        likelihood_args=(KDE, params_out, qmax)
+        likelihood_args=(KDE, params_out, qmax, fixed_params)
 )
     sampler.run(n_eff=n_eff,verbose=True,discard_exploration=True)
     
