@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py as h5
 import pandas as pd
-from .consts import BPP_SHAPE, KICK_SHAPE, BPP_COLUMNS, KICK_COLUMNS
+from .consts import BPP_SHAPE, KICK_SHAPE, BPP_COLUMNS, KICK_COLUMNS, BCM_COLUMNS
 
 __all__ = ['BackPopsteriors']
 
@@ -40,6 +40,7 @@ class BackPopsteriors():
         self.blobs = None
         self.bpp = None
         self.kick_info = None
+        self.bcm_row = None
 
         # load data from file if provided
         if file is not None:
@@ -52,9 +53,11 @@ class BackPopsteriors():
                 if 'blobs' in f:
                     self.blobs = f['blobs'][:]
                 if 'bpp' in f:
-                    self.bpp = pd.read_hdf(file, 'bpp')
+                    self.bpp = pd.read_hdf(file, key='bpp')
                 if 'kick_info' in f:
-                    self.kick_info = pd.read_hdf(file, 'kick_info')
+                    self.kick_info = pd.read_hdf(file, key='kick_info')
+                if 'bcm_row' in f:
+                    self.bcm_row = pd.read_hdf(file, key='bcm_row')
         # otherwise use provided data
         elif points is not None and log_w is not None and log_l is not None and var_names is not None:
             self.points = points
@@ -69,15 +72,18 @@ class BackPopsteriors():
         self.labels = var_labels if var_labels is not None else self.var_names
 
         # if blobs are provided, parse them into dataframes
-        if self.blobs is not None and self.bpp is None or self.kick_info is None:
+        if self.blobs is not None and (self.bpp is None or self.kick_info is None or self.bcm_row is None):
             self.bpp = pd.DataFrame(self.blobs["bpp"].reshape(-1, BPP_SHAPE[-1]), columns=BPP_COLUMNS)
             self.kick_info = pd.DataFrame(self.blobs["kick_info"].reshape(-1, KICK_SHAPE[-1]),
                                           columns=KICK_COLUMNS)
+            self.bcm_row = pd.DataFrame(self.blobs["bcm_row"].reshape(-1, len(BCM_COLUMNS) + 2),
+                                        columns=BCM_COLUMNS + ['vsys_1_total', 'vsys_2_total'])
 
             # set index so we can easily filter based on binaries
             self.bpp.index = np.repeat(np.arange(self.bpp.shape[0] / BPP_SHAPE[0]), BPP_SHAPE[0]).astype(int)
             self.kick_info.index = np.repeat(np.arange(self.kick_info.shape[0] / KICK_SHAPE[0]),
                                              KICK_SHAPE[0]).astype(int)
+            self.bcm_row.index = np.arange(self.bcm_row.shape[0])
 
             # filter out empty data (evol_type would never be 0 in a real binary)
             self.bpp = self.bpp[self.bpp["evol_type"] > 0.0]
@@ -96,7 +102,7 @@ class BackPopsteriors():
     def n_vars(self):
         return self.points.shape[1]
 
-    def cornerplot(self, which_vars=None, show=True, **kwargs):
+    def cornerplot(self, which_vars=None, extra_vars=None, extra_labels=None, show=True, **kwargs):
         """Create a corner plot of the posterior samples.
 
         Parameters
@@ -115,11 +121,29 @@ class BackPopsteriors():
             mask = np.isin(self.var_names, which_vars)
             if not np.any(mask):
                 raise ValueError("No matching variable names found.")
+            
+        likelihood_mask = np.isfinite(self.log_l)
+
+        points = self.points[:, mask]
+        labels = self.labels[mask]
+        if extra_vars is not None and extra_labels is not None:
+            # check that the shapes of extra_vars and extra_labels are correct
+            extra_vars = np.atleast_2d(extra_vars)
+            if extra_vars.shape[0] != self.points.shape[0]:
+                raise ValueError("extra_vars must have the same number of rows as points.")
+            if len(extra_labels) != extra_vars.shape[1]:
+                raise ValueError("extra_labels must have the same length as the number of columns in extra_vars.")
+            points = np.hstack([points, extra_vars])
+            labels = np.hstack([labels, extra_labels])
+
+        points = points[likelihood_mask]
+        weights = np.exp(self.log_w[likelihood_mask])
+        
         fig = corner.corner(
-            self.points[:, mask], weights=np.exp(self.log_w), bins=kwargs.pop("bins", 20),
-            labels=self.labels[mask], color=kwargs.pop("color", '#074662'),
+            points, weights=weights, bins=kwargs.pop("bins", 20),
+            labels=labels, color=kwargs.pop("color", '#074662'),
             plot_datapoints=kwargs.pop("plot_datapoints", False),
-            range=kwargs.pop("range", np.repeat(0.999, mask.sum())), **kwargs)
+            range=kwargs.pop("range", np.repeat(0.999, len(points))), **kwargs)
 
         if show:
             plt.show()
@@ -149,6 +173,9 @@ class BackPopsteriors():
 
         # save bpp and kick info if they exist
         if self.bpp is not None:
-            self.bpp.to_hdf(file, 'bpp')
+            self.bpp.to_hdf(file, key='bpp')
         if self.kick_info is not None:
-            self.kick_info.to_hdf(file, 'kick_info')
+            self.kick_info.to_hdf(file, key='kick_info')
+        if self.bcm_row is not None:
+            self.bcm_row.to_hdf(file, key='bcm_row')
+
