@@ -85,7 +85,8 @@ class BackPop():
             n_live=self.config["n_live"], 
             pool=self.config["n_threads"],
             blobs_dtype=[('bpp', float, 35*len(BPP_COLUMNS)),
-                         ('kick_info', float, 2*len(KICK_COLUMNS))],
+                         ('kick_info', float, 2*len(KICK_COLUMNS)),
+                         ('bcm_row', float, len(BCM_COLUMNS) + 2)],
             filepath=filepath, 
             resume=self.config["resume"]
         )
@@ -125,7 +126,8 @@ class BackPop():
         if "m1" in x and "m2" in x:
             if x["m1"] < x["m2"]:
                 return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
-                        np.full(np.prod(KICK_SHAPE), np.nan, dtype=float))
+                        np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
+                        np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
         # enforce limits on physical values
         # TODO: check with Katie if this is necessary with Nautilus priors
@@ -134,7 +136,8 @@ class BackPop():
             if val < self.var["min"][i] or val > self.var["max"][i]:
                 # return invalid flattened arrays
                 return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
-                        np.full(np.prod(KICK_SHAPE), np.nan, dtype=float))
+                        np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
+                        np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
         # turn sampled log-parameters back into linear space if necessary
         for i, name in enumerate(x):
@@ -147,7 +150,8 @@ class BackPop():
         if result[0] is None:
             # print("No result!!")
             return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
-                    np.full(np.prod(KICK_SHAPE), np.nan, dtype=float))
+                    np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
+                    np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
         # apply log values to observed parameters if necessary
         for i, name in enumerate(self.obs["name"]):
@@ -159,6 +163,7 @@ class BackPop():
         # flatten arrays and force dtype
         bpp_flat = np.array(result[1], dtype=float).ravel()
         kick_flat = np.array(result[2], dtype=float).ravel()
+        bcm_row = np.array(result[3], dtype=float).ravel()
 
         # check shapes
         # if bpp_flat.size != np.prod(BPP_SHAPE) or kick_flat.size != np.prod(KICK_SHAPE):
@@ -168,7 +173,7 @@ class BackPop():
         #             np.full(np.prod(KICK_SHAPE), np.nan, dtype=float))
         
         # else return the log-likelihood and flattened arrays
-        return ll, bpp_flat, kick_flat
+        return ll, bpp_flat, kick_flat, bcm_row
     
     def evolv2(self, params_in):
         '''Evolve a binary with COSMIC given input parameters and return the output parameters
@@ -269,7 +274,7 @@ class BackPop():
 
         if len(out) > 0:
             # print(f'Found a binary that meets the phase condition! m1={m1:1.2f}, m2={m2:1.2f}, tb={tb:1.2f}, e={e:1.2f}, tphysf={tphysf:1.2f}, vsys_2_total ={out["vsys_2_total"].iloc[0]:1.2f}, teff_2 = {out["teff_2"].iloc[0]:1.2f}, log_lum_2 = {np.log10(out["lum_2"].iloc[0]):1.2f}')
-            return out[self.obs["name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy()
+            return out[self.obs["name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy(), out.iloc[0].to_numpy() if self.config["use_bcm"] else np.zeros(len(BCM_COLUMNS) + 2)
         else:
             return None, None, None
 
