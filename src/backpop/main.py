@@ -218,7 +218,7 @@ class BackPop():
         
         col_inds_bpp = np.zeros(len(ALL_COLUMNS), dtype=int)
         col_inds_bpp[:len(bpp_columns)] = [ALL_COLUMNS.index(col) + 1 for col in bpp_columns]
-        n_col_bpp = len(BPP_COLUMNS)    
+        n_col_bpp = len(BPP_COLUMNS) 
 
         col_inds_bcm = np.zeros(len(ALL_COLUMNS), dtype=int)
         col_inds_bcm[:len(bcm_columns)] = [ALL_COLUMNS.index(col) + 1 for col in bcm_columns]
@@ -274,7 +274,7 @@ class BackPop():
 
         if len(out) > 0:
             # print(f'Found a binary that meets the phase condition! m1={m1:1.2f}, m2={m2:1.2f}, tb={tb:1.2f}, e={e:1.2f}, tphysf={tphysf:1.2f}, vsys_2_total ={out["vsys_2_total"].iloc[0]:1.2f}, teff_2 = {out["teff_2"].iloc[0]:1.2f}, log_lum_2 = {np.log10(out["lum_2"].iloc[0]):1.2f}')
-            return out[self.obs["name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy(), out.iloc[0].to_numpy() if self.config["use_bcm"] else np.zeros(len(BCM_COLUMNS) + 2)
+            return out[self.obs["out_name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy(), out.iloc[0].to_numpy() if self.config["use_bcm"] else np.zeros(len(BCM_COLUMNS) + 2)
         else:
             return None, None, None
 
