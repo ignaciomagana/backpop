@@ -1,5 +1,6 @@
 import ast
 from configparser import ConfigParser
+from .consts import BPP_COLUMNS
 
 __all__ = ["parse_inifile"]
 
@@ -58,7 +59,7 @@ def parse_inifile(ini_file):
         config[k] = int(config[k])
     for k in ["verbose", "resume", "use_bcm"]:
         config[k] = config[k].lower() in ["true", "1", "yes"]
-
+        
     # make sure all flags are the correct type
     flags = config_dict["bse"]
     for k, v in flags.items():
@@ -89,14 +90,24 @@ def parse_inifile(ini_file):
         if k.startswith("backpop.obs::"):
             obs_name = k.split("backpop.obs::")[-1]
             obs["name"].append(obs_name)
-            
             obs["out_name"].append(config_dict[k]["out_name"])
-            
             obs["mean"].append(float(config_dict[k]["mean"].strip()))
             obs["sigma"].append(float(config_dict[k]["sigma"].strip()))
             obs["log"].append(config_dict[k].get("log", "False").strip().lower() == "true")
         if k.startswith("backpop.fixed::"):
             fixed_name = k.split("backpop.fixed::")[-1]
             fixed[fixed_name] = float(config_dict[k]["value"].strip())
+    
+    # make sure bpp_col names are found in BPP_COLUMNS
+    for k in config["bpp_col"].split(","):
+        if k not in BPP_COLUMNS:
+            raise ValueError(f'Invalid column name: {k}. '
+                             f'Not found in BPP columns: {BPP_COLUMNS}')
+            
+    # make sure bpp_col includes observables
+    for k in obs["out_name"]:
+        if k not in config["bpp_col"]:
+            raise ValueError(f'Missing column: {k}. You must provide BPP column names '
+                             f'that match observables: {obs["out_name"]}')
 
     return config, flags, obs, var, fixed
