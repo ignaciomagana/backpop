@@ -78,7 +78,11 @@ class BackPop():
         if self.config["output_folder"] != "" and self.config["output_folder"] != "None":
             filepath = os.path.join(self.config["output_folder"], 'samples_out.hdf5')
         else:
-            filepath = None
+            output_path = os.path.join(os.getcwd(), 'output_folder')
+            os.mkdir(output_path)
+            print(f"Created output folder here: {output_path}")
+            filepath = os.path.join(output_path, 'samples_out.hdf5')
+            
         self.sampler = Sampler(
             prior=self.prior, 
             likelihood=self.likelihood, 
@@ -99,7 +103,8 @@ class BackPop():
 
         if self.config["output_folder"] != "" and self.config["output_folder"] != "None":
             posteriors.save(file=os.path.join(self.config["output_folder"], 'posteriors.h5'))
-
+        else:
+            posteriors.save(file=os.path.join(output_path, 'posteriors.h5'))
 
     def likelihood(self, x):
         '''Calculate the log-likelihood of a binary.
@@ -262,7 +267,7 @@ class BackPop():
         _evolvebin.binary.bcm[:bcm_index, :n_col_bcm] = np.zeros((bcm_index, n_col_bcm))
         # print(bpp.shape)
 
-        bpp = pd.DataFrame(bpp, columns=BPP_COLUMNS)
+        bpp = pd.DataFrame(bpp, columns=BPP_COLUMNS) 
         bcm = pd.DataFrame(bcm, columns=BCM_COLUMNS)
 
         kick_info = pd.DataFrame(kick_info_arrays,
