@@ -199,6 +199,7 @@ class BackPop():
         kick_info : :class:`~numpy.ndarray` or None
             Full kick info array from COSMIC, or None if the phase was not reached
         '''
+        
         # handle initial binary parameters first, ensure all have been provided somewhere
         for param in ["m1", "m2", "tb", "e", "metallicity", "tphys"]:
             if param not in params_in and param not in self.fixed:
@@ -223,11 +224,11 @@ class BackPop():
         
         col_inds_bpp = np.zeros(len(ALL_COLUMNS), dtype=int)
         col_inds_bpp[:len(bpp_columns)] = [ALL_COLUMNS.index(col) + 1 for col in bpp_columns]
-        n_col_bpp = len(BPP_COLUMNS) 
+        n_col_bpp = len(bpp_columns) 
 
         col_inds_bcm = np.zeros(len(ALL_COLUMNS), dtype=int)
         col_inds_bcm[:len(bcm_columns)] = [ALL_COLUMNS.index(col) + 1 for col in bcm_columns]
-        n_col_bcm = len(BCM_COLUMNS)
+        n_col_bcm = len(bcm_columns)
         
         _evolvebin.col.n_col_bpp = n_col_bpp
         _evolvebin.col.col_inds_bpp = col_inds_bpp
@@ -267,8 +268,8 @@ class BackPop():
         _evolvebin.binary.bcm[:bcm_index, :n_col_bcm] = np.zeros((bcm_index, n_col_bcm))
         # print(bpp.shape)
 
-        bpp = pd.DataFrame(bpp, columns=BPP_COLUMNS) 
-        bcm = pd.DataFrame(bcm, columns=BCM_COLUMNS)
+        bpp = pd.DataFrame(bpp, columns=bpp_columns) 
+        bcm = pd.DataFrame(bcm, columns=bcm_columns)
 
         kick_info = pd.DataFrame(kick_info_arrays,
                                  columns=KICK_COLUMNS,
@@ -279,7 +280,7 @@ class BackPop():
 
         if len(out) > 0:
             # print(f'Found a binary that meets the phase condition! m1={m1:1.2f}, m2={m2:1.2f}, tb={tb:1.2f}, e={e:1.2f}, tphysf={tphysf:1.2f}, vsys_2_total ={out["vsys_2_total"].iloc[0]:1.2f}, teff_2 = {out["teff_2"].iloc[0]:1.2f}, log_lum_2 = {np.log10(out["lum_2"].iloc[0]):1.2f}')
-            return out[self.obs["out_name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy(), out.iloc[0].to_numpy() if self.config["use_bcm"] else np.zeros(len(BCM_COLUMNS) + 2)
+            return out[self.obs["out_name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy(), out.iloc[0].to_numpy() if self.config["use_bcm"] else np.zeros(len(bcm_columns) + 2)
         else:
             return None, None, None
 
