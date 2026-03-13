@@ -90,6 +90,10 @@ class BackPopsteriors():
 
             # free up some memory
             self.blobs = None
+            
+        # return selected bpp and bcm columns
+        self.bpp = self.bpp[self.config["bpp_columns"]]
+        self.bcm = self.bpp[self.config["bcm_columns"]]
 
     def __len__(self):
         return self.points.shape[0]
