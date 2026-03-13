@@ -1,6 +1,6 @@
 import ast
 from configparser import ConfigParser
-from .consts import BPP_COLUMNS
+from .consts import BPP_COLUMNS, BCM_COLUMNS
 
 __all__ = ["parse_inifile"]
 
@@ -98,16 +98,39 @@ def parse_inifile(ini_file):
             fixed_name = k.split("backpop.fixed::")[-1]
             fixed[fixed_name] = float(config_dict[k]["value"].strip())
     
-    # make sure bpp_col names are found in BPP_COLUMNS
-    for k in config["bpp_col"].split(","):
-        if k not in BPP_COLUMNS:
-            raise ValueError(f'Invalid column name: {k}. '
-                             f'Not found in BPP columns: {BPP_COLUMNS}')
-            
-    # make sure bpp_col includes observables
-    for k in obs["out_name"]:
-        if k not in config["bpp_col"]:
-            raise ValueError(f'Missing column: {k}. You must provide BPP column names '
-                             f'that match observables: {obs["out_name"]}')
+    if config["bpp_columns"] != "" and config["bpp_columns"] != "None":
+        # make sure bpp_columns names are found in BPP_COLUMNS
+#         import pdb; pdb.set_trace()
+        config["bpp_columns"] = eval(config["bpp_columns"])
+        for k in config["bpp_columns"]:
+            if k not in BPP_COLUMNS:
+                raise ValueError(f'Invalid column name: {k}. '
+                                 f'Not found in BPP columns: {BPP_COLUMNS}')
+
+        # make sure bpp_columns includes observables
+        for k in obs["out_name"]:
+            if k not in config["bpp_columns"]:
+                raise ValueError(f'Missing column: {k}. You must provide BPP column names '
+                                 f'that match observables: {obs["out_name"]}')
+    else:
+        config["bpp_columns"] = BPP_COLUMNS
+        
+    
+    if config["bcm_columns"] != "" and config["bcm_columns"] != "None":
+        # make sure bcm_columns names are found in BCM_COLUMNS
+        config["bcm_columns"] = eval(config["bcm_columns"])
+        for k in config["bcm_columns"]:
+            if k not in BCM_COLUMNS:
+                raise ValueError(f'Invalid column name: {k}. '
+                                 f'Not found in BPP columns: {BCM_COLUMNS}')
+
+        # make sure bcm_columns includes observables
+        for k in obs["out_name"]:
+            if k not in config["bpp_columns"]:
+                raise ValueError(f'Missing column: {k}. You must provide BCM column names '
+                                 f'that match observables: {obs["out_name"]}')
+    else:
+        config["bcm_columns"] = BCM_COLUMNS
+        
 
     return config, flags, obs, var, fixed
