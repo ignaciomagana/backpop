@@ -51,10 +51,11 @@ class BackPopsteriors():
         # load data from file if provided
         if file is not None:
             with h5.File(file, 'r') as f:
-                self.points = f['points']
-                self.log_w = f['log_w']
-                self.log_l = f['log_l']
-                
+                self.points = f['points'][:]
+                self.log_w = f['log_w'][:]
+                self.log_l = f['log_l'][:]
+                self.var_names = np.array(f['var_names'][:].astype(str).tolist())
+
                 if 'bpp' in f:
                     self.bpp = pd.read_hdf(file, key='bpp')
                 if 'kick_info' in f:
@@ -68,7 +69,7 @@ class BackPopsteriors():
             self.log_w = log_w
             self.log_l = log_l
             self.var_names = var_names
-            self.blobs = blobs
+            self.blobs = blobs 
             
         # or shout at the user
         else:
@@ -100,8 +101,7 @@ class BackPopsteriors():
         if bpp_columns is not None:
             self.bpp_columns = bpp_columns
         if bcm_columns is not None:
-            self.bcm_columns = bcm_columns
-        
+            self.bcm_columns = bcm_columns  
 
     def __len__(self):
         return self.points.shape[0]
