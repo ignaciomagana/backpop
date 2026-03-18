@@ -51,6 +51,9 @@ class BackPop():
         Nautilus Sampler object used to perform the sampling.
     """
     def __init__(self, config_file='params.ini'):
+        
+        print("Initializing BackPop with config file")
+        
         self.config_file = config_file
 
         # parse the configuration ini file, set flags and config
@@ -98,7 +101,9 @@ class BackPop():
 
         points, log_w, log_l, blobs = self.sampler.posterior(return_blobs=True)
 
-        posteriors = BackPopsteriors(points=points, log_w=log_w, log_l=log_l,
+        posteriors = BackPopsteriors(bpp_columns=self.config["bpp_columns"],
+                                     bcm_columns=self.config["bcm_columns"],
+                                     points=points, log_w=log_w, log_l=log_l,
                                      var_names=self.var["name"], blobs=blobs)
 
         if self.config["output_folder"] != "" and self.config["output_folder"] != "None":
@@ -262,6 +267,7 @@ class BackPop():
                                                                      p["bhspin"], tphys, zpars,
                                                                      bkick, kick_info)
 
+        # set 35 as default but can be passed in
         bpp = _evolvebin.binary.bpp[:35, :n_col_bpp].copy()
         _evolvebin.binary.bpp[:bpp_index, :n_col_bpp] = np.zeros((bpp_index, n_col_bpp))
         bcm = _evolvebin.binary.bcm[:bcm_index, :n_col_bcm].copy()
