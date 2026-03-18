@@ -24,6 +24,8 @@ class BackPop():
     ----------
     config_file : str, optional
         Path to INI file containing configuration parameters. Default is 'params.ini'.
+    bpp_shape: int, optional; default = 35
+        Number of bpp rows that captures a single binary evolution to initialize bin_num 
 
     Attributes
     ----------
@@ -50,9 +52,11 @@ class BackPop():
     sampler : nautilus.Sampler
         Nautilus Sampler object used to perform the sampling.
     """
-    def __init__(self, config_file='params.ini'):
+    def __init__(self, config_file='params.ini', bpp_shape=35):
         
-        print("Initializing BackPop with config file")
+        print(f"Initializing BackPop with {os.path.split(config_file)[-1]}")
+        
+        self.bpp_shape = bpp_shape
         
         self.config_file = config_file
 
@@ -71,6 +75,7 @@ class BackPop():
         self.prior = Prior()
         for i in range(len(self.var["name"])):
             self.prior.add_parameter(self.var["name"][i], dist=(self.var["min"][i], self.var["max"][i]))
+        
     
     def run_sampler(self):
         """Run the Nautilus sampler to sample the joint distribution of initial binary parameters
@@ -267,8 +272,8 @@ class BackPop():
                                                                      p["bhspin"], tphys, zpars,
                                                                      bkick, kick_info)
 
-        # set 35 as default but can be passed in
-        bpp = _evolvebin.binary.bpp[:35, :n_col_bpp].copy()
+        
+        bpp = _evolvebin.binary.bpp[:self.bpp_shape, :n_col_bpp].copy()
         _evolvebin.binary.bpp[:bpp_index, :n_col_bpp] = np.zeros((bpp_index, n_col_bpp))
         bcm = _evolvebin.binary.bcm[:bcm_index, :n_col_bcm].copy()
         _evolvebin.binary.bcm[:bcm_index, :n_col_bcm] = np.zeros((bcm_index, n_col_bcm))
