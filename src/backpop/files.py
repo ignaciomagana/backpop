@@ -119,7 +119,7 @@ def parse_inifile(ini_file):
     else:
         config["bpp_columns"] = BPP_COLUMNS
         
-    if use_bcm:
+    if config["use_bcm"] == "true":
         if config["bcm_columns"] != "" and config["bcm_columns"] != "None":
             # make sure bcm_columns names are found in BCM_COLUMNS
             config["bcm_columns"] = eval(config["bcm_columns"])
