@@ -4,13 +4,13 @@ import numpy as np
 import h5py as h5
 import pandas as pd
 
-from .consts import BPP_SHAPE, KICK_SHAPE, BPP_COLUMNS, KICK_COLUMNS, BCM_COLUMNS
+from .consts import KICK_SHAPE, BPP_COLUMNS, KICK_COLUMNS, BCM_COLUMNS
 
 __all__ = ['BackPopsteriors']
 
 class BackPopsteriors():
     def __init__(self, file=None, points=None, log_w=None, log_l=None, var_names=None,
-                 blobs=None, var_labels=None, bpp_columns=None, bcm_columns=None):
+                 blobs=None, var_labels=None, bpp_columns=None, bcm_columns=None, bpp_shape=None):
         """Utility class to handle and analyse posterior samples from BackPop.
 
         Parameters
@@ -47,6 +47,13 @@ class BackPopsteriors():
         self.bpp = None
         self.kick_info = None
         self.bcm_row = None
+        
+        if bpp_columns is not None:
+            self.bpp_columns = bpp_columns
+        if bcm_columns is not None:
+            self.bcm_columns = bcm_columns  
+        if bpp_shape is not None:
+            BPP_SHAPE = bpp_shape
 
         # load data from file if provided
         if file is not None:
@@ -90,18 +97,17 @@ class BackPopsteriors():
             self.kick_info.index = np.repeat(np.arange(self.kick_info.shape[0] / KICK_SHAPE[0]),
                                              KICK_SHAPE[0]).astype(int)
             self.bcm_row.index = np.arange(self.bcm_row.shape[0])
+            
+            # add bin_num
+            self.bpp["bin_num"] = self.bpp.index
+            self.kick_info["bin_num"] = self.kick_info.index
+            self.bcm_row["bin_num"] = self.bcm_row.index
 
             # filter out empty data (evol_type would never be 0 in a real binary)
             self.bpp = self.bpp[self.bpp["evol_type"] > 0.0]
 
             # free up some memory
             self.blobs = None
-        
-        # return selected bpp and bcm columns
-        if bpp_columns is not None:
-            self.bpp_columns = bpp_columns
-        if bcm_columns is not None:
-            self.bcm_columns = bcm_columns  
 
     def __len__(self):
         return self.points.shape[0]
@@ -155,7 +161,7 @@ class BackPopsteriors():
             points, weights=weights, bins=kwargs.pop("bins", 20),
             labels=labels, color=kwargs.pop("color", '#074662'),
             plot_datapoints=kwargs.pop("plot_datapoints", False),
-            range=kwargs.pop("range", np.repeat(0.999, self.n_vars)), **kwargs) # changed len(points)
+            range=kwargs.pop("range", np.repeat(0.999, self.n_vars)), **kwargs)
 
         if show == False:
             plt.close(fig) # fixed double plotting of figure
@@ -169,8 +175,6 @@ class BackPopsteriors():
             Path to the output HDF5 file. If not provided, the file path used during initialization
             will be used.
         """
-        # add bpp/bcm bin_num
-        # bcm save only last step if use_bcm = True
         
         if file is None and self.file is None:
             raise ValueError("Must provide a file path to save to.")
@@ -184,10 +188,14 @@ class BackPopsteriors():
             f.create_dataset('var_names', data=[n for n in self.var_names])
             
         # save bpp and kick info if they exist
+        self.bpp_columns.append("bin_num")
+        
         if self.bpp is not None:
             self.bpp[self.bpp_columns].to_hdf(file, key='bpp')
         if self.kick_info is not None:
             self.kick_info.to_hdf(file, key='kick_info')
-        if self.bcm_row is not None:
+        
+        # save bcm only if use_bcm = True
+        if not (self.bcm_row[self.bcm_row.columns[:-1]] == 0).any().any():
             self.bcm_row[self.bcm_columns].to_hdf(file, key='bcm_row')
 
