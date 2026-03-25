@@ -135,6 +135,10 @@ def parse_inifile(ini_file):
                                      f'that match observables: {obs["out_name"]}')
         else:
             config["bcm_columns"] = BCM_COLUMNS
-        
+    
+    if config["bpp_shape"] != "" and config["bpp_shape"] != "None":
+        config["bpp_shape"] = int(config["bpp_shape"])
+    else:
+        config["bpp_shape"] = 35
 
     return config, flags, obs, var, fixed
