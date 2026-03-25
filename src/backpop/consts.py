@@ -1,5 +1,5 @@
 __all__ = ["ALL_COLUMNS", "INTEGER_COLUMNS", "BPP_COLUMNS", "BCM_COLUMNS",
-           "KICK_COLUMNS", "BPP_SHAPE", "KICK_SHAPE", "FLAG_GROUPS", "NATAL_KICK_TRANSLATOR"]
+           "KICK_COLUMNS", "KICK_SHAPE", "FLAG_GROUPS", "NATAL_KICK_TRANSLATOR"]
 
 # COSMIC columns
 ALL_COLUMNS = ['tphys', 'mass_1', 'mass_2', 'kstar_1', 'kstar_2', 'sep', 'porb',
@@ -40,7 +40,6 @@ KICK_COLUMNS = ['star', 'disrupted', 'natal_kick', 'phi', 'theta', 'mean_anomaly
                 'delta_vsysx_2', 'delta_vsysy_2', 'delta_vsysz_2', 'vsys_2_total',
                 'theta_euler', 'phi_euler', 'psi_euler', 'randomseed']
 
-BPP_SHAPE = (35, len(BPP_COLUMNS))
 KICK_SHAPE = (2, len(KICK_COLUMNS))
 
 FLAG_GROUPS = {
