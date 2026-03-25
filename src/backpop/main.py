@@ -52,11 +52,9 @@ class BackPop():
     sampler : nautilus.Sampler
         Nautilus Sampler object used to perform the sampling.
     """
-    def __init__(self, config_file='params.ini', bpp_shape=35):
+    def __init__(self, config_file='params.ini'):
         
         print(f"Initializing BackPop with {os.path.split(config_file)[-1]}")
-        
-        self.bpp_shape = bpp_shape
         
         self.config_file = config_file
 
@@ -75,6 +73,8 @@ class BackPop():
         self.prior = Prior()
         for i in range(len(self.var["name"])):
             self.prior.add_parameter(self.var["name"][i], dist=(self.var["min"][i], self.var["max"][i]))
+            
+        self.BPP_SHAPE = (self.config["bpp_shape"], len(BPP_COLUMNS))
         
     
     def run_sampler(self):
@@ -96,18 +96,20 @@ class BackPop():
             likelihood=self.likelihood, 
             n_live=self.config["n_live"], 
             pool=self.config["n_threads"],
-            blobs_dtype=[('bpp', float, 35*len(BPP_COLUMNS)),
+            blobs_dtype=[('bpp', float, self.config["bpp_shape"]*len(BPP_COLUMNS)),
                          ('kick_info', float, 2*len(KICK_COLUMNS)),
                          ('bcm_row', float, len(BCM_COLUMNS) + 2)],
             filepath=filepath, 
             resume=self.config["resume"]
         )
+        
         self.sampler.run(n_eff=self.config["n_eff"], verbose=self.config["verbose"], discard_exploration=True)
 
         points, log_w, log_l, blobs = self.sampler.posterior(return_blobs=True)
 
         posteriors = BackPopsteriors(bpp_columns=self.config["bpp_columns"],
                                      bcm_columns=self.config["bcm_columns"],
+                                     bpp_shape=self.BPP_SHAPE,
                                      points=points, log_w=log_w, log_l=log_l,
                                      var_names=self.var["name"], blobs=blobs)
 
@@ -137,10 +139,11 @@ class BackPop():
         kick_flat : :class:`~numpy.ndarray`
             Flattened array of the full kick info output from COSMIC
         '''
+        
         # ensure that if m1 and m2 are both provided, m1 >= m2
         if "m1" in x and "m2" in x:
             if x["m1"] < x["m2"]:
-                return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
+                return (-np.inf, np.full(np.prod(self.BPP_SHAPE), np.nan, dtype=float),
                         np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
                         np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
@@ -150,7 +153,7 @@ class BackPop():
             val = x[name]
             if val < self.var["min"][i] or val > self.var["max"][i]:
                 # return invalid flattened arrays
-                return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
+                return (-np.inf, np.full(np.prod(self.BPP_SHAPE), np.nan, dtype=float),
                         np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
                         np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
@@ -164,7 +167,7 @@ class BackPop():
         # check result and calculate likelihood
         if result[0] is None:
             # print("No result!!")
-            return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
+            return (-np.inf, np.full(np.prod(self.BPP_SHAPE), np.nan, dtype=float),
                     np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
                     np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
@@ -273,8 +276,9 @@ class BackPop():
                                                                      bkick, kick_info)
 
         
-        bpp = _evolvebin.binary.bpp[:self.bpp_shape, :n_col_bpp].copy()
+        bpp = _evolvebin.binary.bpp[:self.config["bpp_shape"], :n_col_bpp].copy()
         _evolvebin.binary.bpp[:bpp_index, :n_col_bpp] = np.zeros((bpp_index, n_col_bpp))
+        
         bcm = _evolvebin.binary.bcm[:bcm_index, :n_col_bcm].copy()
         _evolvebin.binary.bcm[:bcm_index, :n_col_bcm] = np.zeros((bcm_index, n_col_bcm))
         # print(bpp.shape)
