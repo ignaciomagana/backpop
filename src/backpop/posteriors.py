@@ -161,10 +161,11 @@ class BackPopsteriors():
             points, weights=weights, bins=kwargs.pop("bins", 20),
             labels=labels, color=kwargs.pop("color", '#074662'),
             plot_datapoints=kwargs.pop("plot_datapoints", False),
-            range=kwargs.pop("range", np.repeat(0.999, self.n_vars)), **kwargs)
+            range=kwargs.pop("range", np.repeat(0.999, self.n_vars)), **kwargs); # this should handle the double plot
 
-        if show == False:
-            plt.close(fig) # fixed double plotting of figure
+        if show:
+            plt.show()
+        return fig
     
     def save(self, file=None):
         """Save the posterior samples to an HDF5 file.
