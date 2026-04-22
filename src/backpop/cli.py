@@ -9,6 +9,7 @@ def main():
     args = parser.parse_args()
 
     start = time() if args.timeit else None
+    
     bp = BackPop(config_file=args.ini_file)
     bp.run_sampler()
     

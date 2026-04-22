@@ -3,13 +3,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py as h5
 import pandas as pd
-from .consts import BPP_SHAPE, KICK_SHAPE, BPP_COLUMNS, KICK_COLUMNS, BCM_COLUMNS
+
+from .consts import KICK_SHAPE, BPP_COLUMNS, KICK_COLUMNS, BCM_COLUMNS
 
 __all__ = ['BackPopsteriors']
 
 class BackPopsteriors():
     def __init__(self, file=None, points=None, log_w=None, log_l=None, var_names=None,
-                 blobs=None, var_labels=None):
+                 blobs=None, var_labels=None, bpp_columns=None, bcm_columns=None, bpp_shape=None):
         """Utility class to handle and analyse posterior samples from BackPop.
 
         Parameters
@@ -30,17 +31,29 @@ class BackPopsteriors():
             The exact shape and contents depend on the simulation outputs.
         var_labels : list of str, optional
             List of labels for the variables, used in plotting. If not provided, `var_names` will be used.
+        bpp_columns : list of str, optional; default: BPP_COLUMNS
+            Columns to save in the bpp table (key evolutionary stage table)
+        bcm_columns : list of str, optional; default: BCM_COLUMNS
+            Columns to save in the bcm table (detailed evolution table)
 
         Raises
         ------
         ValueError
             If neither `file` nor all of `points`, `log_w`, `log_l`, and `var_names` are provided.
         """
+        
         self.file = file
         self.blobs = None
         self.bpp = None
         self.kick_info = None
         self.bcm_row = None
+        
+        if bpp_columns is not None:
+            self.bpp_columns = bpp_columns
+        if bcm_columns is not None:
+            self.bcm_columns = bcm_columns  
+        if bpp_shape is not None:
+            BPP_SHAPE = bpp_shape
 
         # load data from file if provided
         if file is not None:
@@ -50,14 +63,13 @@ class BackPopsteriors():
                 self.log_l = f['log_l'][:]
                 self.var_names = np.array(f['var_names'][:].astype(str).tolist())
 
-                if 'blobs' in f:
-                    self.blobs = f['blobs'][:]
                 if 'bpp' in f:
                     self.bpp = pd.read_hdf(file, key='bpp')
                 if 'kick_info' in f:
                     self.kick_info = pd.read_hdf(file, key='kick_info')
                 if 'bcm_row' in f:
                     self.bcm_row = pd.read_hdf(file, key='bcm_row')
+                    
         # otherwise use provided data
         elif points is not None and log_w is not None and log_l is not None and var_names is not None:
             self.points = points
@@ -65,6 +77,7 @@ class BackPopsteriors():
             self.log_l = log_l
             self.var_names = var_names
             self.blobs = blobs 
+            
         # or shout at the user
         else:
             raise ValueError("Must provide either a file or points, log_w, log_l, and labels directly.")
@@ -84,6 +97,11 @@ class BackPopsteriors():
             self.kick_info.index = np.repeat(np.arange(self.kick_info.shape[0] / KICK_SHAPE[0]),
                                              KICK_SHAPE[0]).astype(int)
             self.bcm_row.index = np.arange(self.bcm_row.shape[0])
+            
+            # add bin_num
+            self.bpp["bin_num"] = self.bpp.index
+            self.kick_info["bin_num"] = self.kick_info.index
+            self.bcm_row["bin_num"] = self.bcm_row.index
 
             # filter out empty data (evol_type would never be 0 in a real binary)
             self.bpp = self.bpp[self.bpp["evol_type"] > 0.0]
@@ -143,7 +161,7 @@ class BackPopsteriors():
             points, weights=weights, bins=kwargs.pop("bins", 20),
             labels=labels, color=kwargs.pop("color", '#074662'),
             plot_datapoints=kwargs.pop("plot_datapoints", False),
-            range=kwargs.pop("range", np.repeat(0.999, len(points))), **kwargs)
+            range=kwargs.pop("range", np.repeat(0.999, self.n_vars)), **kwargs); # this should handle the double plot
 
         if show:
             plt.show()
@@ -158,6 +176,7 @@ class BackPopsteriors():
             Path to the output HDF5 file. If not provided, the file path used during initialization
             will be used.
         """
+        
         if file is None and self.file is None:
             raise ValueError("Must provide a file path to save to.")
         elif file is None:
@@ -168,14 +187,16 @@ class BackPopsteriors():
             f.create_dataset('log_w', data=self.log_w)
             f.create_dataset('log_l', data=self.log_l)
             f.create_dataset('var_names', data=[n for n in self.var_names])
-            if self.blobs is not None:
-                f.create_dataset('blobs', data=self.blobs)
-
+            
         # save bpp and kick info if they exist
+        self.bpp_columns.append("bin_num")
+        
         if self.bpp is not None:
-            self.bpp.to_hdf(file, key='bpp')
+            self.bpp[self.bpp_columns].to_hdf(file, key='bpp')
         if self.kick_info is not None:
             self.kick_info.to_hdf(file, key='kick_info')
-        if self.bcm_row is not None:
-            self.bcm_row.to_hdf(file, key='bcm_row')
+        
+        # save bcm only if use_bcm = True
+        if not (self.bcm_row[self.bcm_row.columns[:-1]] == 0).any().any():
+            self.bcm_row[self.bcm_columns].to_hdf(file, key='bcm_row')
 

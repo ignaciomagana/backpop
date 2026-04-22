@@ -1,5 +1,6 @@
 import ast
 from configparser import ConfigParser
+from .consts import BPP_COLUMNS, BCM_COLUMNS
 
 __all__ = ["parse_inifile"]
 
@@ -48,6 +49,12 @@ def parse_inifile(ini_file):
         Dictionary of variable parameters with keys "min", "max", and "name"
     fixed : dict
         Dictionary of fixed parameters with parameter names as keys and values as values
+        
+    Raises
+    ------
+    ValueError
+        If 'bpp_columns' or 'bcm_columns' provided are not in BPP_COLUMNS or BCM_COLUMNS 
+        and 'bpp_columns' do not include the observable constraints
     """
     config_file = ConfigParser()
     config_file.read(ini_file)
@@ -58,7 +65,7 @@ def parse_inifile(ini_file):
         config[k] = int(config[k])
     for k in ["verbose", "resume", "use_bcm"]:
         config[k] = config[k].lower() in ["true", "1", "yes"]
-
+        
     # make sure all flags are the correct type
     flags = config_dict["bse"]
     for k, v in flags.items():
@@ -69,7 +76,8 @@ def parse_inifile(ini_file):
         "mean": [],
         "sigma": [],
         "name": [],
-        "log": []
+        "log": [],
+        "out_name": []
     }
     var = {
         "min": [],
@@ -88,11 +96,49 @@ def parse_inifile(ini_file):
         if k.startswith("backpop.obs::"):
             obs_name = k.split("backpop.obs::")[-1]
             obs["name"].append(obs_name)
+            obs["out_name"].append(config_dict[k]["out_name"])
             obs["mean"].append(float(config_dict[k]["mean"].strip()))
             obs["sigma"].append(float(config_dict[k]["sigma"].strip()))
             obs["log"].append(config_dict[k].get("log", "False").strip().lower() == "true")
         if k.startswith("backpop.fixed::"):
             fixed_name = k.split("backpop.fixed::")[-1]
             fixed[fixed_name] = float(config_dict[k]["value"].strip())
+    
+    if config["bpp_columns"] != "" and config["bpp_columns"].lower() != "none":
+        config["bpp_columns"] = ast.literal_eval(config["bpp_columns"])
+        for k in config["bpp_columns"]:
+            if k not in BPP_COLUMNS:
+                raise ValueError(f'Invalid column name: {k}. '
+                                 f'Not found in BPP columns: {BPP_COLUMNS}')
+
+        # make sure bpp_columns includes observables
+        for k in obs["out_name"]:
+            if k not in config["bpp_columns"]:
+                raise ValueError(f'Missing column: {k}. You must provide BPP column names '
+                                 f'that match observables: {obs["out_name"]}')
+    else:
+        config["bpp_columns"] = BPP_COLUMNS
+        
+    if config["use_bcm"] == "true":
+        if config["bcm_columns"] != "" and config["bcm_columns"].lower() != "none":
+            # make sure bcm_columns names are found in BCM_COLUMNS
+            config["bcm_columns"] = ast.literal_eval(config["bcm_columns"])
+            for k in config["bcm_columns"]:
+                if k not in BCM_COLUMNS:
+                    raise ValueError(f'Invalid column name: {k}. '
+                                     f'Not found in BCM columns: {BCM_COLUMNS}')
+
+            # make sure bcm_columns includes observables
+            for k in obs["out_name"]:
+                if k not in config["bcm_columns"]:
+                    raise ValueError(f'Missing column: {k}. You must provide BCM column names '
+                                     f'that match observables: {obs["out_name"]}')
+        else:
+            config["bcm_columns"] = BCM_COLUMNS
+    
+    if config["n_bpp_rows"] != "" and config["n_bpp_rows"].lower() != "none":
+        config["n_bpp_rows"] = int(config["n_bpp_rows"])
+    else:
+        config["n_bpp_rows"] = 35
 
     return config, flags, obs, var, fixed

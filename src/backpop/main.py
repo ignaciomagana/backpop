@@ -24,7 +24,7 @@ class BackPop():
     ----------
     config_file : str, optional
         Path to INI file containing configuration parameters. Default is 'params.ini'.
-
+    
     Attributes
     ----------
     config_file : str
@@ -51,11 +51,14 @@ class BackPop():
         Nautilus Sampler object used to perform the sampling.
     """
     def __init__(self, config_file='params.ini'):
+        
         self.config_file = config_file
 
         # parse the configuration ini file, set flags and config
         self.config, self.flags, self.obs, self.var, self.fixed = parse_inifile(self.config_file)
         self.init_flags = self.flags.copy()
+        if self.config["verbose"]:
+            print(f"Initializing BackPop with {os.path.split(config_file)[-1]}")
 
         # create a scipy rv object for the likelihood
         # NOTE: currently assumes independent Gaussians (no correlated noise)
@@ -68,6 +71,9 @@ class BackPop():
         self.prior = Prior()
         for i in range(len(self.var["name"])):
             self.prior.add_parameter(self.var["name"][i], dist=(self.var["min"][i], self.var["max"][i]))
+            
+        self.BPP_SHAPE = (self.config["n_bpp_rows"], len(BPP_COLUMNS))
+        
     
     def run_sampler(self):
         """Run the Nautilus sampler to sample the joint distribution of initial binary parameters
@@ -78,28 +84,38 @@ class BackPop():
         if self.config["output_folder"] != "" and self.config["output_folder"] != "None":
             filepath = os.path.join(self.config["output_folder"], 'samples_out.hdf5')
         else:
-            filepath = None
+            output_path = os.path.join(os.getcwd(), 'output_folder')
+            os.mkdir(output_path)
+            if self.config["verbose"]:
+                print(f"Created output folder here: {output_path}")
+            filepath = os.path.join(output_path, 'samples_out.hdf5')
+            
         self.sampler = Sampler(
             prior=self.prior, 
             likelihood=self.likelihood, 
             n_live=self.config["n_live"], 
             pool=self.config["n_threads"],
-            blobs_dtype=[('bpp', float, 35*len(BPP_COLUMNS)),
+            blobs_dtype=[('bpp', float, self.config["n_bpp_rows"]*len(BPP_COLUMNS)),
                          ('kick_info', float, 2*len(KICK_COLUMNS)),
                          ('bcm_row', float, len(BCM_COLUMNS) + 2)],
             filepath=filepath, 
             resume=self.config["resume"]
         )
+        
         self.sampler.run(n_eff=self.config["n_eff"], verbose=self.config["verbose"], discard_exploration=True)
 
         points, log_w, log_l, blobs = self.sampler.posterior(return_blobs=True)
 
-        posteriors = BackPopsteriors(points=points, log_w=log_w, log_l=log_l,
+        posteriors = BackPopsteriors(bpp_columns=self.config["bpp_columns"],
+                                     bcm_columns=self.config["bcm_columns"],
+                                     bpp_shape=self.BPP_SHAPE,
+                                     points=points, log_w=log_w, log_l=log_l,
                                      var_names=self.var["name"], blobs=blobs)
 
         if self.config["output_folder"] != "" and self.config["output_folder"] != "None":
             posteriors.save(file=os.path.join(self.config["output_folder"], 'posteriors.h5'))
-
+        else:
+            posteriors.save(file=os.path.join(output_path, 'posteriors.h5'))
 
     def likelihood(self, x):
         '''Calculate the log-likelihood of a binary.
@@ -122,10 +138,11 @@ class BackPop():
         kick_flat : :class:`~numpy.ndarray`
             Flattened array of the full kick info output from COSMIC
         '''
+        
         # ensure that if m1 and m2 are both provided, m1 >= m2
         if "m1" in x and "m2" in x:
             if x["m1"] < x["m2"]:
-                return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
+                return (-np.inf, np.full(np.prod(self.BPP_SHAPE), np.nan, dtype=float),
                         np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
                         np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
@@ -135,7 +152,7 @@ class BackPop():
             val = x[name]
             if val < self.var["min"][i] or val > self.var["max"][i]:
                 # return invalid flattened arrays
-                return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
+                return (-np.inf, np.full(np.prod(self.BPP_SHAPE), np.nan, dtype=float),
                         np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
                         np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
@@ -149,7 +166,7 @@ class BackPop():
         # check result and calculate likelihood
         if result[0] is None:
             # print("No result!!")
-            return (-np.inf, np.full(np.prod(BPP_SHAPE), np.nan, dtype=float),
+            return (-np.inf, np.full(np.prod(self.BPP_SHAPE), np.nan, dtype=float),
                     np.full(np.prod(KICK_SHAPE), np.nan, dtype=float),
                     np.full(len(BCM_COLUMNS) + 2, np.nan, dtype=float))
 
@@ -194,6 +211,7 @@ class BackPop():
         kick_info : :class:`~numpy.ndarray` or None
             Full kick info array from COSMIC, or None if the phase was not reached
         '''
+        
         # handle initial binary parameters first, ensure all have been provided somewhere
         for param in ["m1", "m2", "tb", "e", "metallicity", "tphys"]:
             if param not in params_in and param not in self.fixed:
@@ -218,11 +236,11 @@ class BackPop():
         
         col_inds_bpp = np.zeros(len(ALL_COLUMNS), dtype=int)
         col_inds_bpp[:len(bpp_columns)] = [ALL_COLUMNS.index(col) + 1 for col in bpp_columns]
-        n_col_bpp = len(BPP_COLUMNS)    
+        n_col_bpp = len(bpp_columns) 
 
         col_inds_bcm = np.zeros(len(ALL_COLUMNS), dtype=int)
         col_inds_bcm[:len(bcm_columns)] = [ALL_COLUMNS.index(col) + 1 for col in bcm_columns]
-        n_col_bcm = len(BCM_COLUMNS)
+        n_col_bcm = len(bcm_columns)
         
         _evolvebin.col.n_col_bpp = n_col_bpp
         _evolvebin.col.col_inds_bpp = col_inds_bpp
@@ -256,14 +274,16 @@ class BackPop():
                                                                      p["bhspin"], tphys, zpars,
                                                                      bkick, kick_info)
 
-        bpp = _evolvebin.binary.bpp[:35, :n_col_bpp].copy()
+        
+        bpp = _evolvebin.binary.bpp[:self.config["n_bpp_rows"], :n_col_bpp].copy()
         _evolvebin.binary.bpp[:bpp_index, :n_col_bpp] = np.zeros((bpp_index, n_col_bpp))
+        
         bcm = _evolvebin.binary.bcm[:bcm_index, :n_col_bcm].copy()
         _evolvebin.binary.bcm[:bcm_index, :n_col_bcm] = np.zeros((bcm_index, n_col_bcm))
         # print(bpp.shape)
 
-        bpp = pd.DataFrame(bpp, columns=BPP_COLUMNS)
-        bcm = pd.DataFrame(bcm, columns=BCM_COLUMNS)
+        bpp = pd.DataFrame(bpp, columns=bpp_columns) 
+        bcm = pd.DataFrame(bcm, columns=bcm_columns)
 
         kick_info = pd.DataFrame(kick_info_arrays,
                                  columns=KICK_COLUMNS,
@@ -274,7 +294,7 @@ class BackPop():
 
         if len(out) > 0:
             # print(f'Found a binary that meets the phase condition! m1={m1:1.2f}, m2={m2:1.2f}, tb={tb:1.2f}, e={e:1.2f}, tphysf={tphysf:1.2f}, vsys_2_total ={out["vsys_2_total"].iloc[0]:1.2f}, teff_2 = {out["teff_2"].iloc[0]:1.2f}, log_lum_2 = {np.log10(out["lum_2"].iloc[0]):1.2f}')
-            return out[self.obs["name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy(), out.iloc[0].to_numpy() if self.config["use_bcm"] else np.zeros(len(BCM_COLUMNS) + 2)
+            return out[self.obs["out_name"]].iloc[0].to_numpy(), bpp.to_numpy(), kick_info.to_numpy(), out.iloc[0].to_numpy() if self.config["use_bcm"] else np.zeros(len(bcm_columns) + 2)
         else:
             return None, None, None
 
