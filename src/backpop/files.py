@@ -51,10 +51,10 @@ def parse_inifile(ini_file):
         Dictionary of fixed parameters with parameter names as keys and values as values
         
     Raises
-        ------
-        ValueError
-            If 'bpp_columns' or 'bcm_columns' provided are not in BPP_COLUMNS or BCM_COLUMNS 
-            and 'bpp_columns' do not include the observable constraints
+    ------
+    ValueError
+        If 'bpp_columns' or 'bcm_columns' provided are not in BPP_COLUMNS or BCM_COLUMNS 
+        and 'bpp_columns' do not include the observable constraints
     """
     config_file = ConfigParser()
     config_file.read(ini_file)
@@ -104,8 +104,8 @@ def parse_inifile(ini_file):
             fixed_name = k.split("backpop.fixed::")[-1]
             fixed[fixed_name] = float(config_dict[k]["value"].strip())
     
-    if config["bpp_columns"] != "" and config["bpp_columns"] != "None":
-        config["bpp_columns"] = eval(config["bpp_columns"])
+    if config["bpp_columns"] != "" and config["bpp_columns"].lower() != "none":
+        config["bpp_columns"] = ast.literal_eval(config["bpp_columns"])
         for k in config["bpp_columns"]:
             if k not in BPP_COLUMNS:
                 raise ValueError(f'Invalid column name: {k}. '
@@ -120,13 +120,13 @@ def parse_inifile(ini_file):
         config["bpp_columns"] = BPP_COLUMNS
         
     if config["use_bcm"] == "true":
-        if config["bcm_columns"] != "" and config["bcm_columns"] != "None":
+        if config["bcm_columns"] != "" and config["bcm_columns"].lower() != "none":
             # make sure bcm_columns names are found in BCM_COLUMNS
-            config["bcm_columns"] = eval(config["bcm_columns"])
+            config["bcm_columns"] = ast.literal_eval(config["bcm_columns"])
             for k in config["bcm_columns"]:
                 if k not in BCM_COLUMNS:
                     raise ValueError(f'Invalid column name: {k}. '
-                                     f'Not found in BPP columns: {BCM_COLUMNS}')
+                                     f'Not found in BCM columns: {BCM_COLUMNS}')
 
             # make sure bcm_columns includes observables
             for k in obs["out_name"]:
@@ -136,9 +136,9 @@ def parse_inifile(ini_file):
         else:
             config["bcm_columns"] = BCM_COLUMNS
     
-    if config["bpp_shape"] != "" and config["bpp_shape"] != "None":
-        config["bpp_shape"] = int(config["bpp_shape"])
+    if config["n_bpp_rows"] != "" and config["n_bpp_rows"].lower() != "none":
+        config["n_bpp_rows"] = int(config["n_bpp_rows"])
     else:
-        config["bpp_shape"] = 35
+        config["n_bpp_rows"] = 35
 
     return config, flags, obs, var, fixed

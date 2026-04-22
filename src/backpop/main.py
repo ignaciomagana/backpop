@@ -24,9 +24,7 @@ class BackPop():
     ----------
     config_file : str, optional
         Path to INI file containing configuration parameters. Default is 'params.ini'.
-    bpp_shape: int, optional; default = 35
-        Number of bpp rows that captures a single binary evolution to initialize bin_num 
-
+    
     Attributes
     ----------
     config_file : str
@@ -54,13 +52,13 @@ class BackPop():
     """
     def __init__(self, config_file='params.ini'):
         
-        print(f"Initializing BackPop with {os.path.split(config_file)[-1]}")
-        
         self.config_file = config_file
 
         # parse the configuration ini file, set flags and config
         self.config, self.flags, self.obs, self.var, self.fixed = parse_inifile(self.config_file)
         self.init_flags = self.flags.copy()
+        if self.config["verbose"]:
+            print(f"Initializing BackPop with {os.path.split(config_file)[-1]}")
 
         # create a scipy rv object for the likelihood
         # NOTE: currently assumes independent Gaussians (no correlated noise)
@@ -74,7 +72,7 @@ class BackPop():
         for i in range(len(self.var["name"])):
             self.prior.add_parameter(self.var["name"][i], dist=(self.var["min"][i], self.var["max"][i]))
             
-        self.BPP_SHAPE = (self.config["bpp_shape"], len(BPP_COLUMNS))
+        self.BPP_SHAPE = (self.config["n_bpp_rows"], len(BPP_COLUMNS))
         
     
     def run_sampler(self):
@@ -88,7 +86,8 @@ class BackPop():
         else:
             output_path = os.path.join(os.getcwd(), 'output_folder')
             os.mkdir(output_path)
-            print(f"Created output folder here: {output_path}")
+            if self.config["verbose"]:
+                print(f"Created output folder here: {output_path}")
             filepath = os.path.join(output_path, 'samples_out.hdf5')
             
         self.sampler = Sampler(
@@ -96,7 +95,7 @@ class BackPop():
             likelihood=self.likelihood, 
             n_live=self.config["n_live"], 
             pool=self.config["n_threads"],
-            blobs_dtype=[('bpp', float, self.config["bpp_shape"]*len(BPP_COLUMNS)),
+            blobs_dtype=[('bpp', float, self.config["n_bpp_rows"]*len(BPP_COLUMNS)),
                          ('kick_info', float, 2*len(KICK_COLUMNS)),
                          ('bcm_row', float, len(BCM_COLUMNS) + 2)],
             filepath=filepath, 
@@ -276,7 +275,7 @@ class BackPop():
                                                                      bkick, kick_info)
 
         
-        bpp = _evolvebin.binary.bpp[:self.config["bpp_shape"], :n_col_bpp].copy()
+        bpp = _evolvebin.binary.bpp[:self.config["n_bpp_rows"], :n_col_bpp].copy()
         _evolvebin.binary.bpp[:bpp_index, :n_col_bpp] = np.zeros((bpp_index, n_col_bpp))
         
         bcm = _evolvebin.binary.bcm[:bcm_index, :n_col_bcm].copy()
