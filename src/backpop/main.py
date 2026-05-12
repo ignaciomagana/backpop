@@ -11,6 +11,7 @@ from .consts import *
 from .files import parse_inifile
 from .phase import select_phase, add_vsys_from_kicks
 from .posteriors import BackPopsteriors
+from .gw import load_gw_data_from_config
 
 
 __all__ = ["BackPop"]
@@ -60,12 +61,24 @@ class BackPop():
         if self.config["verbose"]:
             print(f"Initializing BackPop with {os.path.split(config_file)[-1]}")
 
-        # create a scipy rv object for the likelihood
-        # NOTE: currently assumes independent Gaussians (no correlated noise)
-        self.rv = multivariate_normal(
-            mean=np.array(self.obs["mean"]),
-            cov=np.diag(np.array(self.obs["sigma"])**2)
-        )
+        # create the requested observational likelihood.  By default BackPop
+        # keeps the existing independent Gaussian proxy; [backpop.gw] switches
+        # to a 2D LVK posterior-sample KDE over source-frame (chirp mass, q).
+        self.gw_likelihood = load_gw_data_from_config(self.config)
+        self.rv = None
+        if self.gw_likelihood is None:
+            self.rv = multivariate_normal(
+                mean=np.array(self.obs["mean"]),
+                cov=np.diag(np.array(self.obs["sigma"])**2)
+            )
+        else:
+            for required in ("mass_1", "mass_2"):
+                if required not in self.obs["out_name"]:
+                    raise ValueError(
+                        "GW KDE likelihood requires observations with "
+                        f"out_name = {required!r} so BackPop can compare the "
+                        "COSMIC remnant masses to the LVK (mc, q) KDE"
+                    )
         
         # initialise the Nautilus prior
         self.prior = Prior()
@@ -175,7 +188,12 @@ class BackPop():
             if self.obs["log"][i]:
                 result[0][i] = np.log10(result[0][i])
 
-        ll = np.sum(self.rv.logpdf(result[0]))
+        if self.gw_likelihood is None:
+            ll = np.sum(self.rv.logpdf(result[0]))
+        else:
+            m1 = result[0][self.obs["out_name"].index("mass_1")]
+            m2 = result[0][self.obs["out_name"].index("mass_2")]
+            ll = self.gw_likelihood.logpdf(m1, m2)
 
         # flatten arrays and force dtype
         bpp_flat = np.array(result[1], dtype=float).ravel()
