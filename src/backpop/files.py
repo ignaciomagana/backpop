@@ -61,10 +61,20 @@ def parse_inifile(ini_file):
     config_dict = {section: dict(config_file.items(section)) for section in config_file.sections()}
 
     config = config_dict["backpop"]
+    if "output_folder" not in config and "filepath" in config:
+        config["output_folder"] = config["filepath"]
+    if "phase_condition" not in config and "phase_select" in config:
+        config["phase_condition"] = config["phase_select"]
+    config.setdefault("output_folder", "")
+    config.setdefault("bpp_columns", "")
+    config.setdefault("bcm_columns", "")
+    config.setdefault("n_bpp_rows", "")
+    config.setdefault("use_bcm", "False")
     for k in ["n_threads", "n_eff", "n_live"]:
         config[k] = int(config[k])
     for k in ["verbose", "resume", "use_bcm"]:
-        config[k] = config[k].lower() in ["true", "1", "yes"]
+        config[k] = str(config[k]).lower() in ["true", "1", "yes"]
+    config["gw"] = config_dict.get("backpop.gw", {})
         
     # make sure all flags are the correct type
     flags = config_dict["bse"]
@@ -119,7 +129,7 @@ def parse_inifile(ini_file):
     else:
         config["bpp_columns"] = BPP_COLUMNS
         
-    if config["use_bcm"] == "true":
+    if config["use_bcm"]:
         if config["bcm_columns"] != "" and config["bcm_columns"].lower() != "none":
             # make sure bcm_columns names are found in BCM_COLUMNS
             config["bcm_columns"] = ast.literal_eval(config["bcm_columns"])
